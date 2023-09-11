@@ -1,0 +1,52 @@
+service: bonzai-aws
+frameworkVersion: '3'
+
+provider:
+  name: aws
+  runtime: nodejs18.x
+
+plugins:
+  - serverless-webpack
+
+package:
+  individually: true
+
+functions:
+  GET:
+    handler: functions/GET/index.handler
+    events:
+      - httpApi:
+          path: /api/booking
+          method: GET
+  POST:
+    handler: functions/POST/index.handler
+    events:
+      - httpApi:
+          path: /api/booking
+          method: POST
+  PUT:
+    handler: functions/PUT/index.handler
+    events:
+      - httpApi:
+          path: /api/booking/{id}
+          method: PUT
+  DELETE:
+    handler: functions/DELETE/index.handler
+    events:
+      - httpApi:
+          path: /api/booking/{id}
+          method: DELETE
+
+resources:
+  Resources: 
+    BookingTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: Booking
+        AttributeDefinitions:
+          - AttributeName: id
+            AttributeType: S
+        KeySchema:
+          - AttributeName: id
+            KeyType: HASH
+        BillingMode: PAY_PER_REQUEST
