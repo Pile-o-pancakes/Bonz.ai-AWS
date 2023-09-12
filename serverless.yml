@@ -1,5 +1,5 @@
 service: bonzai-aws
-frameworkVersion: '3'
+frameworkVersion: "3"
 
 provider:
   name: aws
@@ -43,7 +43,7 @@ functions:
           method: DELETE
 
 resources:
-  Resources: 
+  Resources:
     BookingTable:
       Type: AWS::DynamoDB::Table
       Properties:
