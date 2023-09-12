@@ -58,6 +58,30 @@ async function bookRoom(
 }
 
 exports.handler = async (event, context) => {
+  const { name, total_price, totalRooms } = JSON.parse(event.body);
+  roomType = [
+    {
+      id: 1,
+      name: 'Single',
+      price: 500,
+      booked: false,
+      maxGuests: 1,
+    },
+    {
+      id: 2,
+      name: 'Double',
+      price: 1000,
+      booked: false,
+      maxGuests: 2,
+    },
+    {
+      id: 3,
+      name: 'Suite',
+      price: 1500,
+      booked: false,
+      maxGuests: 3,
+    },
+  ];
   try {
     const requestBody = JSON.parse(event.body);
 
@@ -74,6 +98,17 @@ exports.handler = async (event, context) => {
       });
     }
 
+     const id = nanoid();
+    const order = {
+      id,
+      guestName,
+      numberOfGuests,
+      totalCost,
+      fromDate,
+      toDate,
+      bookedRoomsId,
+    };
+
     const savedBooking = await bookRoom(
       requestBody.guestName,
       requestBody.numberOfGuests,
@@ -81,7 +116,15 @@ exports.handler = async (event, context) => {
       requestBody.checkInDate,
       requestBody.checkOutDate
     );
-
+    
+    // await db
+    //   .put({
+    //     TableName: process.env.TABLE_NAME,
+    //     Item: {
+    //       id,
+    //     },
+    //   })
+    //   .promise();
     return sendResponse(200, { success: true, booking: savedBooking });
   } catch (error) {
     console.log(error);
