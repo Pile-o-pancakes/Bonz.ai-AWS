@@ -1,13 +1,13 @@
 service: bonzai-aws
-frameworkVersion: '3'
+frameworkVersion: "3"
 
 provider:
   name: aws
   runtime: nodejs18.x
-  profile: marvan-aws
+  profile: mattsson-oscar
   region: eu-north-1
   iam:
-    role: arn:aws:iam::301081700978:role/MARVAN-AWS
+    role: arn:aws:iam::785567638763:role/oscar-mattsson
   deploymentMethod: direct
 
 plugins:
@@ -43,7 +43,7 @@ functions:
           method: DELETE
 
 resources:
-  Resources: 
+  Resources:
     BookingTable:
       Type: AWS::DynamoDB::Table
       Properties:
