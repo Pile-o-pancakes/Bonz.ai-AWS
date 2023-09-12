@@ -1,7 +1,30 @@
-const { sendResponse, sendError } = require("../../responses/index");
-const { db } = require("../../services/db");
-const { nanoid } = require("nanoid");
+const { sendResponse, sendError } = require('../../responses/index');
+const { db } = require('../../services/db');
+const { nanoid } = require('nanoid');
 
+const roomType = [
+  {
+    id: 1,
+    name: 'Single',
+    price: 500,
+    booked: false,
+    maxGuests: 1,
+  },
+  {
+    id: 2,
+    name: 'Double',
+    price: 1000,
+    booked: false,
+    maxGuests: 2,
+  },
+  {
+    id: 3,
+    name: 'Suite',
+    price: 1500,
+    booked: false,
+    maxGuests: 3,
+  },
+];
 function calculateNumberOfNights(checkInDate, checkOutDate) {
   const checkIn = new Date(checkInDate);
   const checkOut = new Date(checkOutDate);
@@ -12,125 +35,85 @@ function calculateNumberOfNights(checkInDate, checkOutDate) {
 async function bookRoom(
   guestName,
   numberOfGuests,
-  roomType,
+  bookedRoomsId,
   checkInDate,
   checkOutDate
 ) {
-  let costPerNight;
+  let totalRooms = bookedRoomsId.length;
+  let bookedRoomsTotalPrice = 0;
 
-  if (roomType === "single") {
-    if (numberOfGuests !== 1)
-      throw new Error("Invalid number of guests for single room");
-    costPerNight = 500;
-  } else if (roomType === "double") {
-    if (numberOfGuests !== 2)
-      throw new Error("Invalid number of guests for double room");
-    costPerNight = 1000;
-  } else if (roomType === "suite") {
-    if (numberOfGuests !== 3)
-      throw new Error("Invalid number of guests for suite");
-    costPerNight = 1500;
-  } else {
-    throw new Error("Invalid room type");
+  for (let i = 0; i < totalRooms; i++) {
+    if (bookedRoomsId[i] === 1) {
+      bookedRoomsTotalPrice += 500;
+    } else if (bookedRoomsId[i] === 2) {
+      bookedRoomsTotalPrice += 1000;
+    } else if (bookedRoomsId[i] === 3) {
+      bookedRoomsTotalPrice += 1500;
+    } else {
+      throw new Error('Invalid room type');
+    }
   }
 
   const numberOfNights = calculateNumberOfNights(checkInDate, checkOutDate);
-  const totalAmount = costPerNight * numberOfNights;
+  const totalAmount = bookedRoomsTotalPrice * numberOfNights;
 
   const newBooking = {
     id: nanoid(),
     guestName,
     numberOfGuests,
-    roomType,
+    bookedRoomsId,
     totalAmount,
     checkInDate,
     checkOutDate,
   };
 
-  const params = {
-    TableName: "Booking",
+  const orderToSend = {
+    TableName: 'Booking',
     Item: newBooking,
   };
 
-  await db.put(params).promise();
+  await db.put(orderToSend).promise();
 
   return newBooking;
 }
 
 exports.handler = async (event, context) => {
-  const { name, total_price, totalRooms } = JSON.parse(event.body);
-  roomType = [
-    {
-      id: 1,
-      name: 'Single',
-      price: 500,
-      booked: false,
-      maxGuests: 1,
-    },
-    {
-      id: 2,
-      name: 'Double',
-      price: 1000,
-      booked: false,
-      maxGuests: 2,
-    },
-    {
-      id: 3,
-      name: 'Suite',
-      price: 1500,
-      booked: false,
-      maxGuests: 3,
-    },
-  ];
   try {
-    const requestBody = JSON.parse(event.body);
-
+    const {
+      guestName,
+      numberOfGuests,
+      bookedRoomsId,
+      checkInDate,
+      checkOutDate,
+    } = JSON.parse(event.body);
+    console.log('event.body', event.body);
     if (
-      !requestBody.guestName ||
-      !requestBody.numberOfGuests ||
-      !requestBody.roomType ||
-      !requestBody.checkInDate ||
-      !requestBody.checkOutDate
+      !guestName ||
+      !numberOfGuests ||
+      !bookedRoomsId ||
+      !checkInDate ||
+      !checkOutDate
     ) {
       return sendResponse(400, {
         success: false,
-        message: "All required fields must be provided",
+        message: 'All required fields must be provided',
       });
     }
 
-     const id = nanoid();
-    const order = {
-      id,
+    const savedBooking = await bookRoom(
       guestName,
       numberOfGuests,
-      totalCost,
-      fromDate,
-      toDate,
       bookedRoomsId,
-    };
-
-    const savedBooking = await bookRoom(
-      requestBody.guestName,
-      requestBody.numberOfGuests,
-      requestBody.roomType,
-      requestBody.checkInDate,
-      requestBody.checkOutDate
+      checkInDate,
+      checkOutDate
     );
-    
-    // await db
-    //   .put({
-    //     TableName: process.env.TABLE_NAME,
-    //     Item: {
-    //       id,
-    //     },
-    //   })
-    //   .promise();
+
     return sendResponse(200, { success: true, booking: savedBooking });
   } catch (error) {
     console.log(error);
     return sendResponse(500, {
       success: false,
-      message: error.message || "Could not process booking",
+      message: error.message || 'Could not process booking',
     });
   }
 };
