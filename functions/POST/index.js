@@ -1,30 +1,25 @@
-const { sendResponse, sendError } = require('../../responses/index');
-const { db } = require('../../services/db');
-const { nanoid } = require('nanoid');
+const { sendResponse, sendError } = require("../../responses/index");
+const { db } = require("../../services/db");
+const { nanoid } = require("nanoid");
 
-const roomType = [
-  {
-    id: 1,
-    name: 'Single',
+const roomTypes = {
+  1: {
+    name: "Single",
     price: 500,
-    booked: false,
     maxGuests: 1,
   },
-  {
-    id: 2,
-    name: 'Double',
+  2: {
+    name: "Double",
     price: 1000,
-    booked: false,
     maxGuests: 2,
   },
-  {
-    id: 3,
-    name: 'Suite',
+  3: {
+    name: "Suite",
     price: 1500,
-    booked: false,
     maxGuests: 3,
   },
-];
+};
+
 function calculateNumberOfNights(checkInDate, checkOutDate) {
   const checkIn = new Date(checkInDate);
   const checkOut = new Date(checkOutDate);
@@ -39,19 +34,43 @@ async function bookRoom(
   checkInDate,
   checkOutDate
 ) {
-  let totalRooms = bookedRoomsId.length;
+  const totalRooms = bookedRoomsId.length;
+  let singleRoomCount = 0;
+  let doubleRoomCount = 0;
+  let suiteCount = 0;
   let bookedRoomsTotalPrice = 0;
 
+  if (totalRooms > 20) {
+    throw new Error("Exceeded the total number of rooms available.");
+  }
+
   for (let i = 0; i < totalRooms; i++) {
-    if (bookedRoomsId[i] === 1) {
-      bookedRoomsTotalPrice += 500;
-    } else if (bookedRoomsId[i] === 2) {
-      bookedRoomsTotalPrice += 1000;
-    } else if (bookedRoomsId[i] === 3) {
-      bookedRoomsTotalPrice += 1500;
-    } else {
-      throw new Error('Invalid room type');
+    const roomTypeId = bookedRoomsId[i];
+    const roomType = roomTypes[roomTypeId];
+
+    if (!roomType) {
+      throw new Error("Invalid room type");
     }
+
+    if (roomType.name === "Single") {
+      singleRoomCount++;
+      bookedRoomsTotalPrice += roomType.price;
+    } else if (roomType.name === "Double") {
+      doubleRoomCount++;
+      bookedRoomsTotalPrice += roomType.price;
+    } else if (roomType.name === "Suite") {
+      suiteCount++;
+      bookedRoomsTotalPrice += roomType.price;
+    }
+  }
+
+  if (
+    singleRoomCount + doubleRoomCount * 2 + suiteCount * 3 !== numberOfGuests ||
+    singleRoomCount > 20 ||
+    doubleRoomCount > 10 ||
+    suiteCount > 6
+  ) {
+    throw new Error("Invalid room selection for the number of guests.");
   }
 
   const numberOfNights = calculateNumberOfNights(checkInDate, checkOutDate);
@@ -68,7 +87,7 @@ async function bookRoom(
   };
 
   const orderToSend = {
-    TableName: 'Booking',
+    TableName: "Booking",
     Item: newBooking,
   };
 
@@ -86,7 +105,7 @@ exports.handler = async (event, context) => {
       checkInDate,
       checkOutDate,
     } = JSON.parse(event.body);
-    console.log('event.body', event.body);
+    console.log("event.body", event.body);
     if (
       !guestName ||
       !numberOfGuests ||
@@ -96,7 +115,7 @@ exports.handler = async (event, context) => {
     ) {
       return sendResponse(400, {
         success: false,
-        message: 'All required fields must be provided',
+        message: "All required fields must be provided",
       });
     }
 
@@ -113,7 +132,7 @@ exports.handler = async (event, context) => {
     console.log(error);
     return sendResponse(500, {
       success: false,
-      message: error.message || 'Could not process booking',
+      message: error.message || "Could not process booking",
     });
   }
 };
