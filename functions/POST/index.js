@@ -1,23 +1,57 @@
-const { sendResponse, sendError } = require("../../responses/index");
-const { db } = require("../../services/db");
-const { nanoid } = require("nanoid");
+const { t } = require('tar');
+const { sendResponse, sendError } = require('../../responses/index');
+const { db } = require('../../services/db');
+const { nanoid } = require('nanoid');
 
 const roomTypes = {
   1: {
-    name: "Single",
+    name: 'Single',
     price: 500,
     maxGuests: 1,
   },
   2: {
-    name: "Double",
+    name: 'Double',
     price: 1000,
     maxGuests: 2,
   },
   3: {
-    name: "Suite",
+    name: 'Suite',
     price: 1500,
     maxGuests: 3,
   },
+};
+
+async function checkAvailableRooms(numberOfRooms) {
+  const numberOfRoomsToCheck = numberOfRooms;
+
+  //Hämta alla rum som finns
+  const { rooms_available } = await db
+    .scan({
+      TableName: 'Booking',
+      FilterExpression: 'attribute_exists(#DYNOBASE_rooms_available)',
+      ExpressionAttributeNames: {
+        '#DYNOBASE_rooms_available': 'rooms_available',
+      },
+    })
+    .promise();
+
+  console.log('rooms_available', rooms_available[0].rooms_available);
+
+  // Uppdatera  antalet rum som finns
+  // const params = await db
+  //   .update({
+  //     TableName: 'Booking',
+  //     Key: { id: 'roomsId' },
+  //     ReturnValues: 'ALL_NEW',
+  //     UpdateExpression: 'set rooms_available = :numberOfRooms',
+  //     ExpressionAttributeValues: {
+  //       ':numberOfRooms': 2,
+  //     },
+  //   })
+  //   .promise();
+  // console.log('RESULT', params);
+
+  return true;
 }
 
 async function checkIfRoomTypeIsBooked(checkInDate, checkOutDate, roomTypeId) {
@@ -37,7 +71,7 @@ async function checkIfRoomTypeIsBooked(checkInDate, checkOutDate, roomTypeId) {
     if (result.Items.length > 0) return true;
   }
   return false;
-};
+}
 
 function calculateNumberOfNights(checkInDate, checkOutDate) {
   const checkIn = new Date(checkInDate);
@@ -51,7 +85,8 @@ async function bookRoom(
   numberOfGuests,
   bookedRoomsId,
   checkInDate,
-  checkOutDate
+  checkOutDate,
+  email
 ) {
   const totalRooms = bookedRoomsId.length;
   let singleRoomCount = 0;
@@ -60,7 +95,7 @@ async function bookRoom(
   let bookedRoomsTotalPrice = 0;
 
   if (totalRooms > 20) {
-    throw new Error("Exceeded the total number of rooms available.");
+    throw new Error('Exceeded the total number of rooms available.');
   }
 
   for (let i = 0; i < totalRooms; i++) {
@@ -68,16 +103,16 @@ async function bookRoom(
     const roomType = roomTypes[roomTypeId];
 
     if (!roomType) {
-      throw new Error("Invalid room type");
+      throw new Error('Invalid room type');
     }
 
-    if (roomType.name === "Single") {
+    if (roomType.name === 'Single') {
       singleRoomCount++;
       bookedRoomsTotalPrice += roomType.price;
-    } else if (roomType.name === "Double") {
+    } else if (roomType.name === 'Double') {
       doubleRoomCount++;
       bookedRoomsTotalPrice += roomType.price;
-    } else if (roomType.name === "Suite") {
+    } else if (roomType.name === 'Suite') {
       suiteCount++;
       bookedRoomsTotalPrice += roomType.price;
     }
@@ -89,7 +124,7 @@ async function bookRoom(
     doubleRoomCount > 10 ||
     suiteCount > 6
   ) {
-    throw new Error("Invalid room selection for the number of guests.");
+    throw new Error('Invalid room selection for the number of guests.');
   }
 
   const numberOfNights = calculateNumberOfNights(checkInDate, checkOutDate);
@@ -103,10 +138,11 @@ async function bookRoom(
     totalAmount,
     checkInDate,
     checkOutDate,
+    email,
   };
 
   const orderToSend = {
-    TableName: "Booking",
+    TableName: 'Booking',
     Item: newBooking,
   };
 
@@ -123,18 +159,20 @@ exports.handler = async (event, context) => {
       bookedRoomsId,
       checkInDate,
       checkOutDate,
+      email,
     } = JSON.parse(event.body);
-    
+
     if (
       !guestName ||
       !numberOfGuests ||
       !bookedRoomsId ||
       !checkInDate ||
-      !checkOutDate
+      !checkOutDate ||
+      !email
     ) {
       return sendResponse(400, {
         success: false,
-        message: "All required fields must be provided",
+        message: 'All required fields must be provided',
       });
     }
 
@@ -150,12 +188,20 @@ exports.handler = async (event, context) => {
       });
     }
 
+    const availableRooms = await checkAvailableRooms(bookedRoomsId.length);
+    if (availableRooms.length === 0) {
+      return sendResponse(400, {
+        success: false,
+        message: 'Not enough rooms available',
+      });
+    }
     const savedBooking = await bookRoom(
       guestName,
       numberOfGuests,
       bookedRoomsId,
       checkInDate,
-      checkOutDate
+      checkOutDate,
+      email
     );
 
     return sendResponse(200, {
@@ -166,7 +212,7 @@ exports.handler = async (event, context) => {
     console.log(error);
     return sendResponse(500, {
       success: false,
-      message: error.message || "Could not process booking",
+      message: error.message || 'Could not process booking',
     });
   }
 };
