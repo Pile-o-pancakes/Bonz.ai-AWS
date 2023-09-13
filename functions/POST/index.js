@@ -1,4 +1,3 @@
-const { t } = require('tar');
 const { sendResponse, sendError } = require('../../responses/index');
 const { db } = require('../../services/db');
 const { nanoid } = require('nanoid');
@@ -21,56 +20,32 @@ const roomTypes = {
   },
 };
 
-async function checkAvailableRooms(numberOfRooms) {
-  const numberOfRoomsToCheck = numberOfRooms;
-
-  //Hämta alla rum som finns
-  const { rooms_available } = await db
+async function checkAvailableRooms(numberOfRooms, checkInDate, checkOutDate) {
+  const bookedRoomsOnDates = await db
     .scan({
       TableName: 'Booking',
-      FilterExpression: 'attribute_exists(#DYNOBASE_rooms_available)',
-      ExpressionAttributeNames: {
-        '#DYNOBASE_rooms_available': 'rooms_available',
+      FilterExpression:
+        '((checkInDate BETWEEN :checkInDate AND :checkOutDate) OR (checkOutDate BETWEEN :checkInDate AND :checkOutDate))',
+      ExpressionAttributeValues: {
+        ':checkInDate': checkInDate,
+        ':checkOutDate': checkOutDate,
       },
     })
     .promise();
 
-  console.log('rooms_available', rooms_available[0].rooms_available);
-
-  // Uppdatera  antalet rum som finns
-  // const params = await db
-  //   .update({
-  //     TableName: 'Booking',
-  //     Key: { id: 'roomsId' },
-  //     ReturnValues: 'ALL_NEW',
-  //     UpdateExpression: 'set rooms_available = :numberOfRooms',
-  //     ExpressionAttributeValues: {
-  //       ':numberOfRooms': 2,
-  //     },
-  //   })
-  //   .promise();
-  // console.log('RESULT', params);
-
-  return true;
-}
-
-async function checkIfRoomTypeIsBooked(checkInDate, checkOutDate, roomTypeId) {
-  for (let i = 0; i < roomTypeId.length; i++) {
-    const params = {
-      TableName: 'Booking',
-      FilterExpression:
-        'contains(bookedRoomsId, :roomTypeId) AND ((checkInDate BETWEEN :checkInDate AND :checkOutDate) OR (checkOutDate BETWEEN :checkInDate AND :checkOutDate))',
-      ExpressionAttributeValues: {
-        ':checkInDate': checkInDate,
-        ':checkOutDate': checkOutDate,
-        ':roomTypeId': roomTypeId[i],
-      },
-    };
-
-    const result = await db.scan(params).promise();
-    if (result.Items.length > 0) return true;
+  let bookedRooms = [];
+  for (let i = 0; i < bookedRoomsOnDates.Items.length; i++) {
+    const bookedRoomsId = bookedRoomsOnDates.Items[i].bookedRoomsId;
+    for (let j = 0; j < bookedRoomsId.length; j++) {
+      bookedRooms.push(bookedRoomsId[j]);
+    }
   }
-  return false;
+
+  if (bookedRooms.length + numberOfRooms > 20) {
+    return false;
+  } else {
+    return true;
+  }
 }
 
 function calculateNumberOfNights(checkInDate, checkOutDate) {
@@ -118,13 +93,20 @@ async function bookRoom(
     }
   }
 
-  if (
-    singleRoomCount + doubleRoomCount * 2 + suiteCount * 3 !== numberOfGuests ||
-    singleRoomCount > 20 ||
-    doubleRoomCount > 10 ||
-    suiteCount > 6
-  ) {
-    throw new Error('Invalid room selection for the number of guests.');
+  if (numberOfGuests === 1) {
+    // Gör inget då en gäst kan boka vad som helst
+  } else if (numberOfGuests === 2) {
+    if (doubleRoomCount !== 1 && suiteCount !== 1 && singleRoomCount !== 2) {
+      throw new Error('Invalid room selection for 2 guests.');
+    }
+  } else if (numberOfGuests >= 3) {
+    if (
+      suiteCount !== 1 &&
+      (doubleRoomCount !== 1 || singleRoomCount !== 1) &&
+      singleRoomCount !== 3
+    ) {
+      throw new Error('Invalid room selection for 3 or more guests.');
+    }
   }
 
   const numberOfNights = calculateNumberOfNights(checkInDate, checkOutDate);
@@ -176,38 +158,32 @@ exports.handler = async (event, context) => {
       });
     }
 
-    const bookingExists = await checkIfRoomTypeIsBooked(
+    const availableRooms = await checkAvailableRooms(
+      bookedRoomsId.length,
       checkInDate,
-      checkOutDate,
-      bookedRoomsId
-    );
-    if (bookingExists) {
-      return sendResponse(400, {
-        success: false,
-        message: 'Room type is already booked for provided dates',
-      });
-    }
-
-    const availableRooms = await checkAvailableRooms(bookedRoomsId.length);
-    if (availableRooms.length === 0) {
-      return sendResponse(400, {
-        success: false,
-        message: 'Not enough rooms available',
-      });
-    }
-    const savedBooking = await bookRoom(
-      guestName,
-      numberOfGuests,
-      bookedRoomsId,
-      checkInDate,
-      checkOutDate,
-      email
+      checkOutDate
     );
 
-    return sendResponse(200, {
-      success: true,
-      booking: savedBooking,
-    });
+    if (!availableRooms) {
+      return sendResponse(400, {
+        success: false,
+        message: 'Room type(s) is already booked for provided dates',
+      });
+    } else {
+      const savedBooking = await bookRoom(
+        guestName,
+        numberOfGuests,
+        bookedRoomsId,
+        checkInDate,
+        checkOutDate,
+        email
+      );
+
+      return sendResponse(200, {
+        success: true,
+        booking: savedBooking,
+      });
+    }
   } catch (error) {
     console.log(error);
     return sendResponse(500, {
