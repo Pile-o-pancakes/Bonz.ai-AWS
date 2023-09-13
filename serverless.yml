@@ -10,6 +10,8 @@ provider:
     role: ${env:LAMBDA_ROLE}
   deploymentMethod: direct
 
+useDotenv: true
+
 plugins:
   - serverless-webpack
 
