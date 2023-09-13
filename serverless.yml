@@ -4,10 +4,10 @@ frameworkVersion: "3"
 provider:
   name: aws
   runtime: nodejs18.x
-  profile: default
+  profile: ${env:PROFILE}
   region: eu-north-1
   iam:
-    role: arn:aws:iam::301081700978:role/MARVAN-AWS
+    role: ${env:LAMBDA_ROLE}
   deploymentMethod: direct
 
 plugins:
