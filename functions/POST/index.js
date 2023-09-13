@@ -18,6 +18,25 @@ const roomTypes = {
     price: 1500,
     maxGuests: 3,
   },
+}
+
+async function checkIfRoomTypeIsBooked(checkInDate, checkOutDate, roomTypeId) {
+  for (let i = 0; i < roomTypeId.length; i++) {
+    const params = {
+      TableName: 'Booking',
+      FilterExpression:
+        'contains(bookedRoomsId, :roomTypeId) AND ((checkInDate BETWEEN :checkInDate AND :checkOutDate) OR (checkOutDate BETWEEN :checkInDate AND :checkOutDate))',
+      ExpressionAttributeValues: {
+        ':checkInDate': checkInDate,
+        ':checkOutDate': checkOutDate,
+        ':roomTypeId': roomTypeId[i],
+      },
+    };
+
+    const result = await db.scan(params).promise();
+    if (result.Items.length > 0) return true;
+  }
+  return false;
 };
 
 function calculateNumberOfNights(checkInDate, checkOutDate) {
@@ -105,7 +124,7 @@ exports.handler = async (event, context) => {
       checkInDate,
       checkOutDate,
     } = JSON.parse(event.body);
-    console.log("event.body", event.body);
+    
     if (
       !guestName ||
       !numberOfGuests ||
@@ -119,6 +138,18 @@ exports.handler = async (event, context) => {
       });
     }
 
+    const bookingExists = await checkIfRoomTypeIsBooked(
+      checkInDate,
+      checkOutDate,
+      bookedRoomsId
+    );
+    if (bookingExists) {
+      return sendResponse(400, {
+        success: false,
+        message: 'Room type is already booked for provided dates',
+      });
+    }
+
     const savedBooking = await bookRoom(
       guestName,
       numberOfGuests,
@@ -127,7 +158,10 @@ exports.handler = async (event, context) => {
       checkOutDate
     );
 
-    return sendResponse(200, { success: true, booking: savedBooking });
+    return sendResponse(200, {
+      success: true,
+      booking: savedBooking,
+    });
   } catch (error) {
     console.log(error);
     return sendResponse(500, {

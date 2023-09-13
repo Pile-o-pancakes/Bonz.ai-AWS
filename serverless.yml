@@ -4,10 +4,10 @@ frameworkVersion: "3"
 provider:
   name: aws
   runtime: nodejs18.x
-  profile: mattsson-oscar
+  profile: ${env:PROFILE}
   region: eu-north-1
   iam:
-    role: arn:aws:iam::785567638763:role/oscar-mattsson
+    role: ${env:LAMBDA_ROLE}
   deploymentMethod: direct
 
 plugins:
