@@ -93,20 +93,43 @@ async function bookRoom(
     }
   }
 
-  if (numberOfGuests === 1) {
-    // Gör inget då en gäst kan boka vad som helst
-  } else if (numberOfGuests === 2) {
-    if (doubleRoomCount !== 1 && suiteCount !== 1 && singleRoomCount !== 2) {
-      throw new Error('Invalid room selection for 2 guests.');
+  // if (numberOfGuests === 1) {
+  //   // Gör inget då en gäst kan boka vad som helst
+  // } else if (numberOfGuests === 2) {
+  //   if (doubleRoomCount !== 1 && suiteCount !== 1 && singleRoomCount !== 2) {
+  //     throw new Error('Invalid room selection for 2 guests.');
+  //   }
+  // } else if (numberOfGuests >= 3) {
+  //   if (
+  //     suiteCount !== 1 &&
+  //     (doubleRoomCount !== 1 || singleRoomCount !== 1) &&
+  //     singleRoomCount !== 3
+  //   ) {
+  //     throw new Error('Invalid room selection for 3 or more guests.');
+  //   }
+  // }
+
+  const wantedRoomsToBook = bookedRoomsId;
+  let roomsToBook = 0;
+  for (let i = 0; i < wantedRoomsToBook.length; i++) {
+    const roomTypeId = wantedRoomsToBook[i];
+    const roomType = roomTypes[roomTypeId];
+
+    if (!roomType) {
+      throw new Error('Invalid room type');
     }
-  } else if (numberOfGuests >= 3) {
-    if (
-      suiteCount !== 1 &&
-      (doubleRoomCount !== 1 || singleRoomCount !== 1) &&
-      singleRoomCount !== 3
-    ) {
-      throw new Error('Invalid room selection for 3 or more guests.');
+
+    if (roomType.name === 'Single') {
+      roomsToBook += 1;
+    } else if (roomType.name === 'Double') {
+      roomsToBook += 2;
+    } else if (roomType.name === 'Suite') {
+      roomsToBook += 3;
     }
+  }
+
+  if (roomsToBook < numberOfGuests) {
+    throw new Error('Invalid room selection for number of guests.');
   }
 
   const numberOfNights = calculateNumberOfNights(checkInDate, checkOutDate);
