@@ -93,22 +93,6 @@ async function bookRoom(
     }
   }
 
-  // if (numberOfGuests === 1) {
-  //   // Gör inget då en gäst kan boka vad som helst
-  // } else if (numberOfGuests === 2) {
-  //   if (doubleRoomCount !== 1 && suiteCount !== 1 && singleRoomCount !== 2) {
-  //     throw new Error('Invalid room selection for 2 guests.');
-  //   }
-  // } else if (numberOfGuests >= 3) {
-  //   if (
-  //     suiteCount !== 1 &&
-  //     (doubleRoomCount !== 1 || singleRoomCount !== 1) &&
-  //     singleRoomCount !== 3
-  //   ) {
-  //     throw new Error('Invalid room selection for 3 or more guests.');
-  //   }
-  // }
-
   const wantedRoomsToBook = bookedRoomsId;
   let roomsToBook = 0;
   for (let i = 0; i < wantedRoomsToBook.length; i++) {
