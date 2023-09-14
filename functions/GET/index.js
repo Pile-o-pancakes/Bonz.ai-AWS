@@ -1,8 +1,8 @@
-const { sendResponse, sendError } = require("../../responses/index");
-const { db } = require("../../services/db");
+const { sendResponse, sendError } = require('../../responses/index');
+const { db } = require('../../services/db');
 
 async function getAllBookings() {
-  const bookings = await db.scan({ TableName: "Booking" }).promise();
+  const bookings = await db.scan({ TableName: 'Booking' }).promise();
 
   return bookings.Items.map((booking) => ({
     bookingNumber: booking.id,
@@ -11,10 +11,11 @@ async function getAllBookings() {
     numberOfGuests: booking.numberOfGuests,
     numberOfRooms: booking.bookedRoomsId.length,
     guestName: booking.guestName,
+    email: booking.email,
   }));
 }
 
-exports.getAllBookingsHandler = async (event, context) => {
+exports.handler = async (event, context) => {
   try {
     const bookings = await getAllBookings();
 
@@ -26,7 +27,7 @@ exports.getAllBookingsHandler = async (event, context) => {
     console.log(error);
     return sendResponse(500, {
       success: false,
-      message: error.message || "Could not fetch bookings",
+      message: error.message || 'Could not fetch bookings',
     });
   }
 };
